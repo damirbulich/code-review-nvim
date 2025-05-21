@@ -1,7 +1,3 @@
-local http = require("socket.http")
-local ltn12 = require("ltn12")
-local json = require("dkjson") -- Assuming dkjson is available
-
 local M = {}
 
 -- Default configuration
@@ -29,35 +25,34 @@ local function prepare_diff_for_ollama(diff)
     }
 end
 
--- Function to send request to Ollama
+-- Function to send request to Ollama using curl
 local function send_to_ollama(diff_data)
-    local request_body = json.encode({
+    local request_body = vim.json.encode({
         model = M.config.ollama_model,
         prompt = "Review the following code changes and provide specific comments with line numbers in the format {review: [{file: 'filename', lineNum: number, comment: 'comment'}]}. Here are the changes:\n" .. diff_data.changes
     })
 
-    local response_body = {}
-    local res, code, headers = http.request{
-        url = M.config.ollama_endpoint,
-        method = "POST",
-        headers = {
-            ["Content-Type"] = "application/json",
-            ["Content-Length"] = #request_body
-        },
-        source = ltn12.source.string(request_body),
-        sink = ltn12.sink.table(response_body)
-    }
+    -- Escape JSON string for shell command
+    local escaped_body = vim.fn.shellescape(request_body)
 
-    if code ~= 200 then
-        error("Ollama request failed with status " .. code)
+    -- Run curl command
+    local curl_cmd = string.format(
+        "curl -s -X POST %s -H 'Content-Type: application/json' -d %s",
+        M.config.ollama_endpoint,
+        escaped_body
+    )
+    local result = vim.system({ "bash", "-c", curl_cmd }, { text = true }):wait()
+
+    if result.code ~= 0 then
+        error("Ollama request failed: " .. (result.stderr or "Unknown error"))
     end
 
-    return table.concat(response_body)
+    return result.stdout
 end
 
 -- Function to parse Ollama response
 local function parse_ollama_response(response)
-    local data = json.decode(response)
+    local data = vim.json.decode(response)
     if data and data.review then
         return data.review
     else
@@ -105,6 +100,13 @@ end
 function M.setup(opts)
     M.config = vim.tbl_deep_extend("force", defaults, opts or {})
     
+    -- Check for curl
+    local curl_check = vim.system({ "which", "curl" }, { text = true }):wait()
+    if curl_check.code ~= 0 then
+        vim.api.nvim_err_writeln("curl not found. Please install curl to use this plugin.")
+        return
+    end
+
     -- Register Neovim command
     vim.api.nvim_create_user_command("CodeReview", run_code_review, {})
     
