@@ -29,7 +29,8 @@ end
 local function send_to_ollama(diff_data)
     local request_body = vim.json.encode({
         model = M.config.ollama_model,
-        prompt = "Review the following code changes and provide specific comments with line numbers in the format {review: [{file: 'filename', lineNum: number, comment: 'comment'}]}. Here are the changes:\n" .. diff_data.changes
+        prompt = "Review the following code changes and provide specific comments with line numbers in the format {review: [{file: 'filename', lineNum: number, comment: 'comment'}]}. Here are the changes:\n" .. diff_data.changes,
+        stream = false,
     })
 
     -- Escape JSON string for shell command
@@ -64,12 +65,10 @@ end
 local function display_review(comments)
     vim.api.nvim_command("new") -- Open new buffer
     local buf = vim.api.nvim_get_current_buf()
-    
     local lines = {}
     for _, comment in ipairs(comments) do
         table.insert(lines, string.format("%s:%d: %s", comment.file, comment.lineNum, comment.comment))
     end
-    
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     vim.api.nvim_buf_set_option(buf, "filetype", "codereview")
     vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
