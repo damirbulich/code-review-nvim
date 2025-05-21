@@ -1,0 +1,22 @@
+# LuaRocks build files
+*.o
+*.os
+*.so
+*.a
+*.lib
+*.dll
+*.dylib
+
+# LuaRocks lock file
+luarocks.lock
+
+# Temporary files
+*.swp
+*.swo
+*.bak
+*.tmp
+*~
+
+# Neovim swap files
+.nvim/
+.nvimlog
