@@ -106,7 +106,8 @@ local function run_code_review()
 
         local diff_data = prepare_diff_for_ollama(diff)
         local response = send_to_ollama(diff_data)
-        display_review(response)
+        local parsed = vim.json.decode(response)
+        display_review(response.response)
     end)
 
     if not ok then
