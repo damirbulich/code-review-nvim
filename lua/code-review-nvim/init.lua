@@ -29,7 +29,7 @@ end
 local function send_to_ollama(diff_data)
     local request_body = vim.json.encode({
         model = M.config.ollama_model,
-        prompt = "Review the following code changes and provide specific comments about bad practices, typos and etc. Here are the changes:\n" .. diff_data.changes,
+        prompt = "Review the following code changes and provide specific comments about bad practices, typos and etc. Here are the changes:\n```\n" .. diff_data.changes .. "\n```",
         stream = false
     })
 
