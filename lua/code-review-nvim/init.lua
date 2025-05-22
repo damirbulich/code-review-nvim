@@ -29,8 +29,8 @@ end
 local function send_to_ollama(diff_data)
     local request_body = vim.json.encode({
         model = M.config.ollama_model,
-        prompt = "Review the following code changes and provide specific comments with line numbers in the format {review: [{file: 'filename', lineNum: number, comment: 'comment'}]}. Here are the changes:\n" .. diff_data.changes,
-        stream = false,
+        prompt = "Review the following code changes and provide specific comments about bad practices, typos and etc. Here are the changes:\n" .. diff_data.changes,
+        stream = false
     })
 
     -- Escape JSON string for shell command
@@ -51,28 +51,48 @@ local function send_to_ollama(diff_data)
     return result.stdout
 end
 
--- Function to parse Ollama response
-local function parse_ollama_response(response)
-    local data = vim.json.decode(response)
-    if data and data.review then
-        return data.review
-    else
-        error("Invalid response format from Ollama")
-    end
-end
-
--- Function to display review comments in Neovim
-local function display_review(comments)
-    vim.api.nvim_command("new") -- Open new buffer
-    local buf = vim.api.nvim_get_current_buf()
-    local lines = {}
-    for _, comment in ipairs(comments) do
-        table.insert(lines, string.format("%s:%d: %s", comment.file, comment.lineNum, comment.comment))
-    end
+-- Function to display raw Ollama response in a floating window
+local function display_review(raw_response)
+    -- Create a new buffer
+    local buf = vim.api.nvim_create_buf(false, true)
+    
+    -- Split the response into lines
+    local lines = vim.split(raw_response, "\n", { trimempty = false })
+    
+    -- Set buffer contents
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    vim.api.nvim_buf_set_option(buf, "filetype", "codereview")
+    vim.api.nvim_buf_set_option(buf, "filetype", "text")
     vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-    vim.api.nvim_buf_set_name(buf, "Code Review")
+    vim.api.nvim_buf_set_name(buf, "Ollama Code Review")
+
+    -- Get current window dimensions
+    local win_width = vim.api.nvim_get_option("columns")
+    local win_height = vim.api.nvim_get_option("lines")
+
+    -- Calculate floating window size
+    local width = math.floor(win_width * 0.8)
+    local height = math.floor(win_height * 0.8)
+    local col = math.floor((win_width - width) / 2)
+    local row = math.floor((win_height - height) / 2)
+
+    -- Configure floating window
+    local opts = {
+        style = "minimal",
+        relative = "editor",
+        width = width,
+        height = height,
+        col = col,
+        row = row,
+        border = "rounded",
+        zindex = 50,
+    }
+
+    -- Open floating window
+    local win = vim.api.nvim_open_win(buf, true, opts)
+
+    -- Set window options
+    vim.api.nvim_win_set_option(win, "wrap", true)
+    vim.api.nvim_win_set_option(win, "winblend", 0)
 end
 
 -- Main function to run code review
@@ -86,8 +106,7 @@ local function run_code_review()
 
         local diff_data = prepare_diff_for_ollama(diff)
         local response = send_to_ollama(diff_data)
-        local comments = parse_ollama_response(response)
-        display_review(comments)
+        display_review(response)
     end)
 
     if not ok then
