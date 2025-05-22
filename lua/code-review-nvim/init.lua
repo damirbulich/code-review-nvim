@@ -12,7 +12,7 @@ M.config = defaults
 
 -- Function to get git diff
 local function get_git_diff()
-    local handle = io.popen("git diff")
+    local handle = io.popen("git diff --staged")
     local diff = handle:read("*a")
     handle:close()
     return diff
